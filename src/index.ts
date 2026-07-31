@@ -25,7 +25,11 @@ export default function (pi: ExtensionAPI) {
 		cwdTracker = createCwdTracker(ctx.cwd);
 
 		const onFreshCwd = () => {
-			if (cwdTracker?.update(ctx.cwd)) tuiRef?.requestRender();
+			try {
+				if (cwdTracker?.update(ctx.cwd)) tuiRef?.requestRender();
+			} catch {
+				// Footer bookkeeping must never break the session.
+			}
 		};
 		pi.on("tool_call", onFreshCwd);
 		pi.on("user_bash", onFreshCwd);
@@ -39,7 +43,13 @@ export default function (pi: ExtensionAPI) {
 				counts: ReturnType<typeof parseGitStatus>;
 				at: number;
 			} | null = null;
-			const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
+			const unsubscribe = footerData.onBranchChange(() => {
+				try {
+					tui.requestRender();
+				} catch {
+					// ignore
+				}
+			});
 
 			const getGitCounts = (cwd: string, branch: string) => {
 				const now = Date.now();
@@ -75,22 +85,27 @@ export default function (pi: ExtensionAPI) {
 				invalidate() {},
 				render(width: number): string[] {
 					if (disposed) return [];
-					const cwd = cwdTracker?.get() ?? ctx.cwd;
-					const branch = footerData.getGitBranch();
-					const usage = ctx.getContextUsage();
-					const line = renderFooter(
-						{
-							model: ctx.model?.id,
-							cwd,
-							branch: branch ?? undefined,
-							gitCounts: branch ? getGitCounts(cwd, branch) : undefined,
-							contextPercent: usage?.percent,
-							contextWindow: usage?.contextWindow ?? ctx.model?.contextWindow,
-						},
-						// Follow the active theme: muted token is dark on light themes.
-						{ width, color: (text) => theme.fg("muted", text) },
-					);
-					return line ? [line] : [];
+					try {
+						const cwd = cwdTracker?.get() ?? ctx.cwd;
+						const branch = footerData.getGitBranch();
+						const usage = ctx.getContextUsage();
+						const line = renderFooter(
+							{
+								model: ctx.model?.id,
+								cwd,
+								branch: branch ?? undefined,
+								gitCounts: branch ? getGitCounts(cwd, branch) : undefined,
+								contextPercent: usage?.percent,
+								contextWindow: usage?.contextWindow ?? ctx.model?.contextWindow,
+							},
+							// Follow the active theme: muted token is dark on light themes.
+							{ width, color: (text) => theme.fg("muted", text) },
+						);
+						return line ? [line] : [];
+					} catch {
+						// A footer must never crash the editor loop.
+						return [];
+					}
 				},
 			};
 		});
