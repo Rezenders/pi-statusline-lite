@@ -34,12 +34,13 @@ TDD 流程：先写 `test/core.test.mjs`，再实现 `src/core.mjs`（纯逻辑�
 
 ## 安装（开发模式）
 
-在 `~/.pi/agent/settings.json` 中添加：
+扩展放在自动发现目录（支持 `/reload` 热重载，`settings.json` 的 `extensions` 字段只在启动时加载）：
 
-```json
-{
-  "extensions": ["/data/data/com.termux/files/home/dev/pi-statusline-lite/src/index.ts"]
-}
+`~/.pi/agent/extensions/pi-statusline-lite.ts`：
+
+```ts
+// Wrapper: loads the extension from the dev workspace so /reload picks up changes.
+export { default } from "/data/data/com.termux/files/home/dev/pi-statusline-lite/src/index.ts";
 ```
 
 然后在 pi 中执行 `/reload`。
