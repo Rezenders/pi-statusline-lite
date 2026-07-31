@@ -8,6 +8,9 @@ import {
 	buildSegments,
 	fitSegments,
 	renderFooter,
+	createCwdTracker,
+	parseGitStatus,
+	formatGitBranch,
 } from "../src/core.mjs";
 
 // ---------- shortenModel ----------
@@ -227,4 +230,251 @@ test("renderFooter: returns empty string when width too small", () => {
 test("renderFooter: width 0 or negative returns empty", () => {
 	assert.equal(renderFooter({ model: "m", cwd: "/x" }, { width: 0 }), "");
 	assert.equal(renderFooter({ model: "m", cwd: "/x" }, { width: -5 }), "");
+});
+
+// ---------- createCwdTracker ----------
+
+test("createCwdTracker: starts with given initial cwd", () => {
+	const t = createCwdTracker("/a");
+	assert.equal(t.get(), "/a");
+});
+
+test("createCwdTracker: starts null without initial cwd", () => {
+	const t = createCwdTracker();
+	assert.equal(t.get(), null);
+});
+
+test("createCwdTracker: first update returns true and stores", () => {
+	const t = createCwdTracker();
+	assert.equal(t.update("/a"), true);
+	assert.equal(t.get(), "/a");
+});
+
+test("createCwdTracker: same cwd returns false (no change)", () => {
+	const t = createCwdTracker("/a");
+	assert.equal(t.update("/a"), false);
+});
+
+test("createCwdTracker: new cwd returns true and replaces", () => {
+	const t = createCwdTracker("/a");
+	assert.equal(t.update("/b"), true);
+	assert.equal(t.get(), "/b");
+});
+
+test("createCwdTracker: empty values are ignored", () => {
+	const t = createCwdTracker("/a");
+	assert.equal(t.update(null), false);
+	assert.equal(t.update(undefined), false);
+	assert.equal(t.update(""), false);
+	assert.equal(t.get(), "/a");
+});
+
+// ---------- parseGitStatus ----------
+
+test("parseGitStatus: empty output is clean", () => {
+	assert.deepEqual(parseGitStatus(""), {
+		staged: 0,
+		unstaged: 0,
+		untracked: 0,
+	});
+});
+
+test("parseGitStatus: ignores blank lines", () => {
+	assert.deepEqual(parseGitStatus("\n  \n\n"), {
+		staged: 0,
+		unstaged: 0,
+		untracked: 0,
+	});
+});
+
+test("parseGitStatus: untracked files (??)", () => {
+	assert.deepEqual(parseGitStatus("?? newfile.txt\n"), {
+		staged: 0,
+		unstaged: 0,
+		untracked: 1,
+	});
+});
+
+test("parseGitStatus: unstaged modification ( M)", () => {
+	assert.deepEqual(parseGitStatus(" M src/core.mjs\n"), {
+		staged: 0,
+		unstaged: 1,
+		untracked: 0,
+	});
+});
+
+test("parseGitStatus: staged modification (M )", () => {
+	assert.deepEqual(parseGitStatus("M  src/core.mjs\n"), {
+		staged: 1,
+		unstaged: 0,
+		untracked: 0,
+	});
+});
+
+test("parseGitStatus: staged + unstaged (MM)", () => {
+	assert.deepEqual(parseGitStatus("MM src/core.mjs\n"), {
+		staged: 1,
+		unstaged: 1,
+		untracked: 0,
+	});
+});
+
+test("parseGitStatus: staged add (A )", () => {
+	assert.deepEqual(parseGitStatus("A  src/new.mjs\n"), {
+		staged: 1,
+		unstaged: 0,
+		untracked: 0,
+	});
+});
+
+test("parseGitStatus: unstaged delete ( D)", () => {
+	assert.deepEqual(parseGitStatus(" D src/old.mjs\n"), {
+		staged: 0,
+		unstaged: 1,
+		untracked: 0,
+	});
+});
+
+test("parseGitStatus: rename counts as staged", () => {
+	assert.deepEqual(parseGitStatus("R  old.mjs -> new.mjs\n"), {
+		staged: 1,
+		unstaged: 0,
+		untracked: 0,
+	});
+});
+
+test("parseGitStatus: ignored files (!!) are not counted", () => {
+	assert.deepEqual(parseGitStatus("!! node_modules/\n"), {
+		staged: 0,
+		unstaged: 0,
+		untracked: 0,
+	});
+});
+
+test("parseGitStatus: mixed output counts all categories", () => {
+	const out = [
+		"M  a.mjs",
+		" M b.mjs",
+		"MM c.mjs",
+		"?? d.txt",
+		" D e.mjs",
+		"A  f.mjs",
+		"",
+	].join("\n");
+	assert.deepEqual(parseGitStatus(out), {
+		staged: 3,
+		unstaged: 3,
+		untracked: 1,
+	});
+});
+
+// ---------- formatGitBranch ----------
+
+test("formatGitBranch: null branch returns null", () => {
+	assert.equal(
+		formatGitBranch(null, { staged: 1, unstaged: 0, untracked: 0 }),
+		null,
+	);
+});
+
+test("formatGitBranch: clean branch has no suffix", () => {
+	assert.equal(formatGitBranch("main"), "main");
+	assert.equal(
+		formatGitBranch("main", { staged: 0, unstaged: 0, untracked: 0 }),
+		"main",
+	);
+});
+
+test("formatGitBranch: dirty adds ~N total changes", () => {
+	assert.equal(
+		formatGitBranch("main", { staged: 0, unstaged: 2, untracked: 0 }),
+		"main ~2",
+	);
+});
+
+test("formatGitBranch: staged/untracked count into total", () => {
+	assert.equal(
+		formatGitBranch("main", { staged: 1, unstaged: 1, untracked: 2 }),
+		"main ~4",
+	);
+});
+
+// ---------- buildSegments with gitCounts ----------
+
+test("buildSegments: branch segment includes dirty count", () => {
+	const segments = buildSegments({
+		model: "m",
+		cwd: "/x",
+		branch: "main",
+		gitCounts: { staged: 0, unstaged: 1, untracked: 1 },
+	});
+	const branch = segments.find((s) => s.name === "branch");
+	assert.equal(branch.text, "main ~2");
+});
+
+test("buildSegments: branch segment unchanged without gitCounts", () => {
+	const segments = buildSegments({ model: "m", cwd: "/x", branch: "main" });
+	const branch = segments.find((s) => s.name === "branch");
+	assert.equal(branch.text, "main");
+});
+
+// ---------- renderFooter color injection ----------
+
+test("renderFooter: custom color function receives final joined line", () => {
+	let received = null;
+	const line = renderFooter(
+		{
+			model: "deepseek-v4-flash",
+			cwd: "/x/home",
+			branch: "main",
+			contextPercent: 12.3,
+			contextWindow: 200000,
+		},
+		{ width: 200, color: (t) => {
+			received = t;
+			return `[[${t}]]`;
+		} },
+	);
+	assert.equal(received, "🐋 V4F | home | main | 12.3%/200k");
+	assert.equal(line, "[[🐋 V4F | home | main | 12.3%/200k]]");
+});
+
+test("renderFooter: default color remains muted gray", () => {
+	const line = renderFooter({ model: "m", cwd: "/x" }, { width: 200 });
+	assert.ok(line.startsWith("\u001b[38;2;176;176;176m"));
+	assert.ok(line.endsWith("\u001b[0m"));
+});
+
+test("renderFooter: custom color ANSI does not affect fitting", () => {
+	// Color wraps in ANSI; fitting must be based on visible text only.
+	const line = renderFooter(
+		{
+			model: "deepseek-v4-flash",
+			cwd: "/x/very-long-directory-name",
+			branch: "feature/very-long-branch",
+			contextPercent: 12.3,
+			contextWindow: 200000,
+		},
+		{ width: 50, color: (t) => `\u001b[38;2;1;2;3m${t}\u001b[0m` },
+	);
+	// Same fitting as default: cwd dropped at width 50.
+	assert.ok(line.includes("feature/very-long-branch"));
+	assert.ok(!line.includes("very-long-directory-name"));
+});
+
+test("renderFooter: git counts flow through to rendered line", () => {
+	const line = stripAnsi(
+		renderFooter(
+			{
+				model: "deepseek-v4-flash",
+				cwd: "/x",
+				branch: "main",
+				gitCounts: { staged: 0, unstaged: 2, untracked: 1 },
+				contextPercent: 12.3,
+				contextWindow: 200000,
+			},
+			{ width: 200 },
+		),
+	);
+	assert.equal(line, "🐋 V4F | x | main ~3 | 12.3%/200k");
 });

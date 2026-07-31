@@ -14,14 +14,15 @@
 | 段 | 内容 | 优先级（低→高丢弃） |
 |----|----------------------|---------------------|
 | model | 🐋 + 模型缩写（deepseek-v4-flash → V4F） | 110 |
-| cwd | 当前目录 basename | 80 |
-| branch | git 分支名 | 100 |
+| cwd | 当前目录 basename（跟随目录切换） | 80 |
+| branch | git 分支名 + 未提交改动数（`main ~2`） | 100 |
 | context | 百分比/窗口（未知时显示 ?） | 120 |
 
-- 柔和灰色文字（#b0b0b0），适合 dark 主题，无背景色
+- 颜色跟随 pi 主题（`theme.fg("muted")`，浅色/深色主题自动适配），无背景色
 - 段间以 ` | ` 分隔
 - 宽度不足时按优先级从低到高丢弃段（响应式）
-- 无 git 仓库时不显示 branch 段
+- 无 git 仓库时不显示 branch 段；有未提交改动时显示 `~N`（staged+unstaged+untracked 总数）
+- cwd 变化跟随：`tool_call`/`user_bash` 事件里对比最新 `ctx.cwd`，变化即更新并重绘
 
 ## 开发
 

@@ -74,6 +74,70 @@ export function muted(text) {
 }
 
 // ---------------------------------------------------------------------------
+// Cwd tracking
+// ---------------------------------------------------------------------------
+
+/**
+ * Tracks the latest known cwd. `update()` returns true when the cwd changed.
+ * pi exposes no cwd-change event, so callers poll with fresh ctx.cwd values
+ * from other events (tool_call, user_bash, ...).
+ */
+export function createCwdTracker(initial = null) {
+	let cwd = initial ?? null;
+	return {
+		update(latest) {
+			if (latest && latest !== cwd) {
+				cwd = latest;
+				return true;
+			}
+			return false;
+		},
+		get() {
+			return cwd;
+		},
+	};
+}
+
+// ---------------------------------------------------------------------------
+// Git status
+// ---------------------------------------------------------------------------
+
+/**
+ * Count changes from `git status --porcelain` output (v1 format).
+ * Returns { staged, unstaged, untracked }.
+ */
+export function parseGitStatus(porcelain) {
+	const counts = { staged: 0, unstaged: 0, untracked: 0 };
+	for (const line of String(porcelain ?? "").split("\n")) {
+		if (line.length < 2) continue;
+		if (line.startsWith("??")) {
+			counts.untracked += 1;
+			continue;
+		}
+		const x = line[0];
+		const y = line[1];
+		// ' ' = unchanged, '?' = untracked (handled above), '.' = unmerged,
+		// '!' = ignored -> none of these count as real changes.
+		if (x !== " " && x !== "?" && x !== "." && x !== "!") counts.staged += 1;
+		if (y !== " " && y !== "?" && y !== "." && y !== "!") counts.unstaged += 1;
+	}
+	return counts;
+}
+
+/**
+ * Render the branch segment: "main" when clean, "main ~2" when 2 changes are
+ * uncommitted (staged + unstaged + untracked). Returns null when not in a git
+ * repo (branch is null) so the segment is hidden.
+ */
+export function formatGitBranch(branch, counts) {
+	if (!branch) return null;
+	const total = counts
+		? counts.staged + counts.unstaged + counts.untracked
+		: 0;
+	return total > 0 ? `${branch} ~${total}` : branch;
+}
+
+// ---------------------------------------------------------------------------
 // Segment model
 // ---------------------------------------------------------------------------
 
@@ -99,7 +163,7 @@ export function formatContext(percent, window) {
  * Build the ordered segment list from runtime data.
  * Each segment: { name, text } where text already includes prefix.
  */
-export function buildSegments({ model, cwd, branch, contextPercent, contextWindow }) {
+export function buildSegments({ model, cwd, branch, gitCounts, contextPercent, contextWindow }) {
 	const segments = [];
 	segments.push({ name: "model", text: `🐋 ${shortenModel(model) || "?"}` });
 	if (cwd) {
@@ -107,7 +171,7 @@ export function buildSegments({ model, cwd, branch, contextPercent, contextWindo
 		segments.push({ name: "cwd", text: base });
 	}
 	if (branch) {
-		segments.push({ name: "branch", text: branch });
+		segments.push({ name: "branch", text: formatGitBranch(branch, gitCounts) ?? branch });
 	}
 	segments.push({
 		name: "context",
@@ -142,11 +206,13 @@ export function fitSegments(segments, width) {
 }
 
 /**
- * Render the footer line: muted gray text, | separated, no decorations.
+ * Render the footer line, | separated, no decorations.
+ * `color` wraps the final line (default: muted gray for dark themes); pass
+ * e.g. `(t) => theme.fg("muted", t)` to follow the active pi theme.
  * Returns "" when nothing fits.
  */
-export function renderFooter(data, { width }) {
+export function renderFooter(data, { width, color = muted }) {
 	const fitted = fitSegments(buildSegments(data), width);
 	if (fitted.length === 0) return "";
-	return muted(fitted.map((s) => s.text).join(SEPARATOR));
+	return color(fitted.map((s) => s.text).join(SEPARATOR));
 }

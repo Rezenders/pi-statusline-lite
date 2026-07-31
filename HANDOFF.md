@@ -10,8 +10,8 @@
 - **代码位置**：`~/dev/pi-statusline-lite/`（git 仓库，3 次提交）
 - **安装方式**：`~/.pi/agent/extensions/pi-statusline-lite.ts` 包装文件（绝对路径
   re-export 开发目录，支持 `/reload` 热重载）
-- **当前效果**：`🐋 V4F | pi-statusline-lite | master | 8.4%/1000k`
-  （柔和灰 #b0b0b0、` | ` 分隔、无背景色、无装饰符号）
+- **当前效果**：`🐋 V4F | pi-statusline-lite | master ~3 | 8.4%/1000k`
+  （颜色跟随主题、` | ` 分隔、无背景色、无装饰符号）
 
 ## 已完成的
 
@@ -20,16 +20,18 @@
       `deepseek-v3.2 → V3.2`、`deepseek-reasoner → DS reasoner` 兜底，
       claude/gpt 规则沿用原插件）
 - [x] cwd 段：显示 basename
+- [x] cwd 跟随：`tool_call`/`user_bash` 事件里 `createCwdTracker().update(ctx.cwd)`，变化即重绘
 - [x] branch 段：来自 pi `footerData.getGitBranch()`（非 git 仓库时自动隐藏）
+- [x] git 状态：`git status --porcelain` 计数，`main ~2` 表示 2 个未提交改动（2s TTL 缓存）
 - [x] context 段：`8.4%/1000k`（无 "ctx" 前缀；未知时显示 `?`）
 - [x] 响应式裁剪：宽度不足时按优先级丢段
       `context(120) > model(110) > branch(100) > cwd(80)`
-- [x] 颜色：柔和灰 `#b0b0b0`（38;2;176;176;176），无背景色
+- [x] 颜色：跟随 pi 主题的 muted token（`theme.fg("muted")`，浅色/深色自动适配）
 - [x] 分隔符：` | `
 
 ### 工程
 - [x] TDD 流程：先写测试 → 跑失败 → 实现 → 全绿
-- [x] `test/core.test.mjs`：26 个用例（node:test 内置 runner，零依赖）
+- [x] `test/core.test.mjs`：53 个用例（node:test 内置 runner，零依赖）
 - [x] `src/core.mjs`：纯逻辑（不依赖 pi，可直接 node 测试）
 - [x] `src/index.ts`：薄封装（`session_start` → `ctx.ui.setFooter`）
 - [x] git 提交历史：`0dce128`（初始）→ `64fe989`（灰/竖线/去ctx前缀）→
@@ -54,33 +56,19 @@
 
 ## 当前已知问题 / 待办
 
-### 1. cwd 段不跟随目录切换（未解决）
-- 现象：`src/index.ts` 在 `session_start` 时捕获 `ctx.cwd`，之后用户切换目录
-  footer 的 cwd 段不变。
-- 背景：pi 的 `FooterDataProvider` 有 `setCwd()` 会触发 `onBranchChange` 通知，
-  但没有暴露"cwd 变化"事件；`ctx.ui.setFooter` 的 render 闭包拿不到新 cwd。
-- 思路（未验证）：在 `before_agent_start` 或 `tool_call` 事件里对比
-  `ctx.cwd` 与缓存的 cwd，变了就更新（这是最可能的可行方案）。
+### 1. git 状态刷新时机（轻微）
+- `git status --porcelain` 在 render 时执行（2s TTL 缓存），文件改动后最多延迟 2s 反映。
+  工具执行（tool_call）不触发 render，仅分支切换/窗口事件触发。可接受的折衷。
 
-### 2. 验证 branch 段（进行中）
-- 用户已执行 `!cd ~/dev/pi-statusline-lite`，**但这只是子 shell 的 cd**——
-  pi 没有 `/cd` 命令，CLI 也没有 `--cd` 选项，pi 的 cwd 不会变。
-- **验证方法**：退出 pi，在 `~/dev/pi-statusline-lite` 目录重新启动 pi，
-  预期 footer 显示 `master` 分支段。
-
-### 3. 浅色主题适配（未做）
-- 颜色硬编码 `#b0b0b0`，适合 dark 主题。light 主题下需要换成深色。
-- 思路：从 `setFooter((tui, theme, footerData))` 的 `theme` 参数取前景色。
-
-### 4. git 状态增强（可选）
-- 原插件有 `git-status.ts`（`main ~2` 表示 2 个未提交改动），已移除。
-  如需可借鉴其逻辑加到 `core.mjs`（读 `git status --porcelain` 计数）。
+### 2. 浅色主题验证（未验证）
+- 颜色已改用 `theme.fg("muted")` 跟随主题，但本机未配置浅色主题，实际效果未目验。
+  理论上浅色主题的 muted token 为深色。
 
 ## 常用命令
 
 ```bash
 cd ~/dev/pi-statusline-lite
-npm test                    # 跑全部测试（26 个用例）
+npm test                    # 跑全部测试（53 个用例）
 git add -A && git commit    # 提交
 ```
 
@@ -90,8 +78,8 @@ git add -A && git commit    # 提交
 
 | 文件 | 作用 |
 |------|------|
-| `src/core.mjs` | 纯逻辑：shortenModel / visibleWidth / fitSegments / renderFooter |
-| `src/index.ts` | pi 扩展入口（TUI footer 注册） |
-| `test/core.test.mjs` | 26 个测试用例 |
+| `src/core.mjs` | 纯逻辑：shortenModel / visibleWidth / fitSegments / renderFooter / createCwdTracker / parseGitStatus / formatGitBranch |
+| `src/index.ts` | pi 扩展入口（TUI footer 注册、cwd 事件跟随、git 执行） |
+| `test/core.test.mjs` | 53 个测试用例 |
 | `package.json` | `npm test` = `node --test` |
 | `~/.pi/agent/extensions/pi-statusline-lite.ts` | 安装包装文件（勿删） |
