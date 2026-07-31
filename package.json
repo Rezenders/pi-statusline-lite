@@ -4,6 +4,23 @@
 	"description": "Minimal plain-text footer for pi: model, cwd, git branch, context usage. No powerline decorations.",
 	"type": "module",
 	"private": true,
+	"license": "MIT",
+	"author": "Hariketsu",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Hariketsu/pi-statusline-lite.git"
+	},
+	"keywords": [
+		"pi",
+		"pi-extension",
+		"statusline",
+		"footer",
+		"tui",
+		"termux"
+	],
+	"engines": {
+		"node": ">=18"
+	},
 	"scripts": {
 		"test": "node --test"
 	}
