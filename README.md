@@ -13,6 +13,23 @@ stay simple.
 🐋 V4F | home | main | 12.3%/200k
 ```
 
+## Built on a phone, by pi
+
+This project was developed **end-to-end on an Android phone**: the [Termux](https://termux.dev)
+terminal plus the **pi coding agent**. Every line of code, test case, git commit,
+and this README was written on-device by pi in interactive sessions — no
+laptop, no IDE.
+
+That constraint shaped the design:
+
+- **Zero runtime dependencies**, no build step — it must load fast on a phone
+- **57-test suite with `node --test`** — TDD keeps the change small enough to
+  reason about on a small screen
+- **Responsive segments** — the footer drops low-priority info instead of
+  overflowing a narrow terminal
+- **Plain text only** — no powerline glyphs, no background blocks, no decoration
+  that a phone terminal can't render
+
 ## Features
 
 - **model** — shortened model id (`deepseek-v4-flash` → `V4F`, `claude-sonnet-4-5` → `sonnet-4-5`, …)
