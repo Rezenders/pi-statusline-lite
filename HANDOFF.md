@@ -56,6 +56,24 @@
 
 ## 当前已知问题 / 待办
 
+### 0. 2026-07-31：issue-1 修复（重绘风暴）
+- **TUI 层**（pi-tui 0.83.0 dist 补丁，见 `~/dev/fix/issue-1-fix.md`）：
+  `firstChanged < viewportTop` 不再无条件全量重绘，clamp 到可视窗口差量重绘；
+  scrollback 过期内容由下次全量重绘修正。重启 pi 生效。
+- **本扩展**：
+  - 0.83.0 无组件级渲染 API（无 `requestComponentRender`），改为**内容去重**：
+    tool_call/user_bash / onBranchChange 先重算 footer 行，与上次渲染内容不同才
+    调一次 `tui.requestRender()`（事件洪泛不再触发渲染）。
+  - `render()` 恒定返回 1 行（空内容返回 `[""]` 占位），避免行数变化扩大 TUI diff 范围。
+  - 启动自检：`session_start` 时检查 pi-tui 的 issue-1 补丁标记，缺失且无上游
+    alt-screen 时 `ui.notify` 警告。**默认关闭**（开源友好）：
+    `PI_ISSUE1_SELFCHECK=1 pi` 启用；路径从 `which pi` 自动推导，可用
+    `PI_TUI_DIST` 覆盖。
+  - 57 个测试全绿，真实会话冒烟通过。
+- **更新防护**：`pi update` 会覆盖 dist 补丁 → 每次更新后跑一次
+  `~/dev/fix/patch-kit/reapply.sh`（幂等、dry-run 保护、自动回滚）；
+  上游 `--alt` 发布后脚本自动检测并跳过。详见 `~/dev/fix/issue-1-fix.md` 第 8 节。
+
 ### 1. git 状态刷新时机（轻微）
 - `git status --porcelain` 在 render 时执行（2s TTL 缓存），文件改动后最多延迟 2s 反映。
   工具执行（tool_call）不触发 render，仅分支切换/窗口事件触发。可接受的折衷。
