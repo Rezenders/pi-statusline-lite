@@ -9,10 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        # Node >= 22.6 required: tests import TypeScript sources directly
+        # (type stripping). Node 23.6+ enables it by default.
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-      - run: node --test
+      - run: node --experimental-strip-types --test

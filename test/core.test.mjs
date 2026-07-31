@@ -73,7 +73,7 @@ test("stripAnsi: removes escape sequences", () => {
 test("buildSegments: full set in display order", () => {
 	const segments = buildSegments({
 		model: "deepseek-v4-flash",
-		cwd: "/data/data/com.termux/files/home",
+		cwd: "/home/user",
 		branch: "main",
 		contextPercent: 12.34,
 		contextWindow: 200000,
@@ -99,11 +99,11 @@ test("buildSegments: whale prefix for model, V4F short name", () => {
 test("buildSegments: cwd uses basename only", () => {
 	const segments = buildSegments({
 		model: "m",
-		cwd: "/data/data/com.termux/files/home",
+		cwd: "/home/user",
 		branch: "main",
 	});
 	const cwd = segments.find((s) => s.name === "cwd");
-	assert.equal(cwd.text, "home");
+	assert.equal(cwd.text, "user");
 });
 
 test("buildSegments: no branch segment when branch is absent", () => {
