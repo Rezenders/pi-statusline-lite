@@ -1,0 +1,10 @@
+{
+	"name": "pi-statusline-lite",
+	"version": "0.1.0",
+	"description": "Minimal plain-text footer for pi: model, cwd, git branch, context usage. No powerline decorations.",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"test": "node --test"
+	}
+}
