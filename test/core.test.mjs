@@ -116,13 +116,13 @@ test("buildSegments: context format percent and window", () => {
 		contextWindow: 200000,
 	});
 	const context = segments.find((s) => s.name === "context");
-	assert.equal(context.text, "ctx 12.3%/200k");
+	assert.equal(context.text, "12.3%/200k");
 });
 
 test("buildSegments: unknown context shows ?", () => {
 	const segments = buildSegments({ model: "m", cwd: "/x" });
 	const context = segments.find((s) => s.name === "context");
-	assert.equal(context.text, "ctx ?");
+	assert.equal(context.text, "?");
 });
 
 // ---------- fitSegments ----------
@@ -169,7 +169,8 @@ test("fitSegments: model is dropped before context", () => {
 		contextPercent: 12.3,
 		contextWindow: 200000,
 	});
-	const fitted = fitSegments(segments, 20);
+	// model+context = 6+3+11 = 20 cols with " | "; context alone = 11
+	const fitted = fitSegments(segments, 15);
 	assert.deepEqual(
 		fitted.map((s) => s.name),
 		["context"],
@@ -189,7 +190,7 @@ test("fitSegments: empty result when nothing fits", () => {
 
 // ---------- renderFooter ----------
 
-test("renderFooter: joins fitted segments with single spaces", () => {
+test("renderFooter: joins fitted segments with | separators", () => {
 	const line = stripAnsi(
 		renderFooter(
 			{
@@ -202,22 +203,22 @@ test("renderFooter: joins fitted segments with single spaces", () => {
 			{ width: 200 },
 		),
 	);
-	assert.equal(line, "🐋 V4F home main ctx 12.3%/200k");
+	assert.equal(line, "🐋 V4F | home | main | 12.3%/200k");
 });
 
-test("renderFooter: wraps the line in white foreground ANSI", () => {
+test("renderFooter: wraps the line in muted gray foreground ANSI", () => {
 	const line = renderFooter(
 		{ model: "m", cwd: "/x" },
 		{ width: 200 },
 	);
-	assert.ok(line.startsWith("\u001b[38;2;255;255;255m"));
+	assert.ok(line.startsWith("\u001b[38;2;176;176;176m"));
 	assert.ok(line.endsWith("\u001b[0m"));
 	assert.ok(!line.includes("48;2;"), "no background color codes");
 });
 
 test("renderFooter: returns empty string when width too small", () => {
 	const line = renderFooter(
-		{ model: "m", cwd: "/x" },
+		{ model: "m", cwd: "/x", contextPercent: 99, contextWindow: 200000 },
 		{ width: 3 },
 	);
 	assert.equal(line, "");

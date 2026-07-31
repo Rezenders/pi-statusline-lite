@@ -68,9 +68,9 @@ export function visibleWidth(text) {
 	return width;
 }
 
-/** Wrap text in white foreground ANSI (dark-theme friendly, no background). */
-export function white(text) {
-	return `\u001b[38;2;255;255;255m${text}\u001b[0m`;
+/** Wrap text in muted gray foreground ANSI (dark-theme friendly, no background). */
+export function muted(text) {
+	return `\u001b[38;2;176;176;176m${text}\u001b[0m`;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,14 +85,14 @@ export const SEGMENT_PRIORITY = {
 };
 
 export function formatContext(percent, window) {
-	if (percent === null || percent === undefined) return "ctx ?";
+	if (percent === null || percent === undefined) return "?";
 	const pct = Number.isFinite(percent) ? percent.toFixed(1) : "?";
 	const win = window
 		? window >= 1000
 			? `${Math.round(window / 1000)}k`
 			: String(window)
 		: "";
-	return `ctx ${pct}%${win ? "/" + win : ""}`;
+	return `${pct}%${win ? "/" + win : ""}`;
 }
 
 /**
@@ -116,6 +116,8 @@ export function buildSegments({ model, cwd, branch, contextPercent, contextWindo
 	return segments;
 }
 
+const SEPARATOR = " | ";
+
 /**
  * Responsive fitting: drop lowest-priority segments until the rendered line
  * fits the width. Never drops the last remaining segment.
@@ -124,7 +126,7 @@ export function fitSegments(segments, width) {
 	if (width <= 0 || segments.length === 0) return [];
 	const fitted = [...segments];
 	while (fitted.length > 1) {
-		if (visibleWidth(fitted.map((s) => s.text).join(" ")) <= width) return fitted;
+		if (visibleWidth(fitted.map((s) => s.text).join(SEPARATOR)) <= width) return fitted;
 		let dropIndex = 0;
 		for (let i = 1; i < fitted.length; i += 1) {
 			if (
@@ -140,11 +142,11 @@ export function fitSegments(segments, width) {
 }
 
 /**
- * Render the footer line: white text, single-space separated, no decorations.
+ * Render the footer line: muted gray text, | separated, no decorations.
  * Returns "" when nothing fits.
  */
 export function renderFooter(data, { width }) {
 	const fitted = fitSegments(buildSegments(data), width);
 	if (fitted.length === 0) return "";
-	return white(fitted.map((s) => s.text).join(" "));
+	return muted(fitted.map((s) => s.text).join(SEPARATOR));
 }
