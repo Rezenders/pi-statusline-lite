@@ -7,7 +7,7 @@ import {
 	createCwdTracker,
 	parseGitStatus,
 	renderFooter,
-} from "./core.mjs";
+} from "./core.ts";
 
 const FOOTER_KEY = "pi-statusline-lite";
 // Debounce for git status --porcelain (render can fire often on resize/input).

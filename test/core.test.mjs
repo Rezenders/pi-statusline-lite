@@ -11,7 +11,7 @@ import {
 	createCwdTracker,
 	parseGitStatus,
 	formatGitBranch,
-} from "../src/core.mjs";
+} from "../src/core.ts";
 
 // ---------- shortenModel ----------
 
