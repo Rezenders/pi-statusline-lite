@@ -165,7 +165,7 @@ export function formatContext(percent, window) {
  */
 export function buildSegments({ model, cwd, branch, gitCounts, contextPercent, contextWindow }) {
 	const segments = [];
-	segments.push({ name: "model", text: `🐋 ${shortenModel(model) || "?"}` });
+	segments.push({ name: "model", text: ` ${shortenModel(model) || "?"}` });
 	if (cwd) {
 		const base = cwd.split("/").filter(Boolean).at(-1) || cwd;
 		segments.push({ name: "cwd", text: base });

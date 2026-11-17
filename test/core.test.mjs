@@ -84,7 +84,7 @@ test("buildSegments: full set in display order", () => {
 	);
 });
 
-test("buildSegments: whale prefix for model, V4F short name", () => {
+test("buildSegments: custom icon prefix for model, V4F short name", () => {
 	const segments = buildSegments({
 		model: "deepseek-v4-flash",
 		cwd: "/home/user",
@@ -93,7 +93,7 @@ test("buildSegments: whale prefix for model, V4F short name", () => {
 		contextWindow: 200000,
 	});
 	const model = segments.find((s) => s.name === "model");
-	assert.equal(model.text, "🐋 V4F");
+	assert.equal(model.text, " V4F");
 });
 
 test("buildSegments: cwd uses basename only", () => {
@@ -206,7 +206,7 @@ test("renderFooter: joins fitted segments with | separators", () => {
 			{ width: 200 },
 		),
 	);
-	assert.equal(line, "🐋 V4F | home | main | 12.3%/200k");
+	assert.equal(line, " V4F | home | main | 12.3%/200k");
 });
 
 test("renderFooter: wraps the line in muted gray foreground ANSI", () => {
@@ -435,8 +435,8 @@ test("renderFooter: custom color function receives final joined line", () => {
 			return `[[${t}]]`;
 		} },
 	);
-	assert.equal(received, "🐋 V4F | home | main | 12.3%/200k");
-	assert.equal(line, "[[🐋 V4F | home | main | 12.3%/200k]]");
+	assert.equal(received, " V4F | home | main | 12.3%/200k");
+	assert.equal(line, "[[ V4F | home | main | 12.3%/200k]]");
 });
 
 test("renderFooter: default color remains muted gray", () => {
@@ -476,5 +476,5 @@ test("renderFooter: git counts flow through to rendered line", () => {
 			{ width: 200 },
 		),
 	);
-	assert.equal(line, "🐋 V4F | x | main ~3 | 12.3%/200k");
+	assert.equal(line, " V4F | x | main ~3 | 12.3%/200k");
 });
